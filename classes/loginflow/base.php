@@ -319,7 +319,42 @@ class base {
                 $this->add_configured_custom_claims_to_userdata($userdata, $token);
             }
 
+
+            // SKILLSET START
+            $userinfoendpoint = get_config('auth_oidc', 'oidcresource');
+            if (!empty($userinfoendpoint) && !empty($tokenrec->token)) {
+                try {
+                    $uiclient = $this->get_oidcclient();
+                    $uiclient->setendpoints(['userinfo' => $userinfoendpoint]);
+                    $userinfodata = $uiclient->userinforequest($tokenrec->token);
+                    if (!empty($userinfodata)) {
+                        if (!isset($userdata['givenName']) && !empty($userinfodata['given_name'])) {
+                            $userdata['givenName'] = $userinfodata['given_name'];
+                        }
+                        if (!isset($userdata['surname']) && !empty($userinfodata['family_name'])) {
+                            $userdata['surname'] = $userinfodata['family_name'];
+                        }
+                        if (!isset($userdata['mail']) && !empty($userinfodata['email'])) {
+                            $userdata['mail'] = $userinfodata['email'];
+                        }
+                    }
+                } catch (\Exception $e) {
+                    utils::debug('Error fetching userinfo endpoint data', __METHOD__, $e->getMessage());
+                }
+            }
+            // SKILLSET END
+
             $updateduser = static::apply_configured_fieldmap_from_token($userdata, $eventtype);
+
+            // SKILLSET START
+            if (empty($updateduser->firstname) && !empty($userdata['givenName'])) {
+                $updateduser->firstname = $userdata['givenName'];
+            }
+            if (empty($updateduser->lastname) && !empty($userdata['surname'])) {
+                $updateduser->lastname = $userdata['surname'];
+            }
+            // SKILLSET END
+
             $userinfo = (array)$updateduser;
         }
 

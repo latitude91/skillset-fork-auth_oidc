@@ -188,7 +188,12 @@ class oidcclient {
             'client_id' => $this->clientid,
             'scope' => $this->scope,
             'nonce' => $nonce,
-            'response_mode' => 'form_post',
+            // SKILLSET
+            //'response_mode' => 'form_post',
+            'response_mode' => 'query',
+            'vot' => 'Cl',
+            'vtr' => '["Cl.Cm"]',
+            // END SKILLSET
             'state' => $this->getnewstate($nonce, $stateparams),
             'redirect_uri' => $this->redirecturi,
         ];
@@ -401,4 +406,34 @@ class oidcclient {
 
         return $jwt->assert_token($privatekey);
     }
+
+    // SKILLSET START
+    /**
+     * Request user information from the userinfo endpoint.
+     *
+     * GOV.UK One Login returns name claims (given_name, family_name) only at the userinfo endpoint,
+     * not in the ID token or access token. This method fetches those claims.
+     *
+     * @param string $accesstoken The access token to authorize the request.
+     * @return array The decoded userinfo response, or an empty array on failure or if not configured.
+     */
+    public function userinforequest($accesstoken) {
+        if (empty($this->endpoints['userinfo'])) {
+            return [];
+        }
+
+        try {
+            $curl = new \curl();
+            $curl->setHeader('Authorization: Bearer ' . $accesstoken);
+            $response = $curl->get($this->endpoints['userinfo']);
+
+            return utils::process_json_response($response, []);
+        } catch (\Exception $e) {
+            utils::debug('Error in userinforequest request', __METHOD__, $e->getMessage());
+
+            return [];
+        }
+    }
+    // SKILLSET END
+
 }

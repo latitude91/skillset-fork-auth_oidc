@@ -40,6 +40,13 @@ use core\url;
 use stdClass;
 use core\di;
 
+// SKILLSET START
+global $CFG;
+
+use local_bossuserflow\bossuserflow;
+
+// SKILLSET END
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->dirroot . '/auth/oidc/lib.php');
@@ -843,6 +850,35 @@ class authcode extends base {
         // Find the latest real Microsoft username.
         $oidcusername = $this->get_oidc_username_from_token_claim($idtoken);
 
+
+        // SKILLSET
+        // Here we intercept the login flow and run the various state tests.
+        // Get the userinfo with the users email address.
+        $userinfo = $this->get_oidcresource($tokenparams);
+
+        $existing = bossuserflow::match_existing_user($userinfo->email, $oidcusername);
+
+        global $SESSION;
+        // Write stuff we need to the moodle session.
+        $SESSION->email = $userinfo->email;
+        $SESSION->guid = $oidcusername;
+
+        // TODO MDL-0 move to method
+        if ($existing == 'email' || $existing == 'guid') {
+            // Auth the user.
+            $matcheduserurl =
+                new moodle_url('/local/bossuserflow/matcheduser.php', ['email' => $userinfo->email, 'guid' => $oidcusername]);
+            redirect($matcheduserurl);
+        } else if ($existing == 'newuser') {
+            $selectlangurl = new moodle_url('/local/bossuserflow/selectlang.php', []);
+            redirect($selectlangurl);
+        }
+
+        // At this point we continue the normal flow of things.
+        //// END SKILLSET
+        ///
+
+
         $usernamechanged = false;
         if ($oidcusername && $tokenrec && strtolower($oidcusername) !== strtolower($tokenrec->useridentifier)) {
             $usernamechanged = true;
@@ -1138,6 +1174,112 @@ class authcode extends base {
                 redirect($CFG->wwwroot, get_string('errorauthgeneral', 'auth_oidc'), null, notification::NOTIFY_ERROR);
             }
         }
+
+        // SKILLSET
+        $this->get_oneloginuserinfo($tokenparams, $username);
+        // END SKILLSET
+
         return true;
     }
+
+    // SKILLSET
+    //TODO MDl-0 move to class?
+
+    /**
+     * Calls the userinfo endpoint and set the email for the user
+     *
+     * @param array $tokenparams Token params array.
+     * @param \auth_oidc\loginflow\Bit $migrated The flag for migrated user. 1 for migrated, 0 for non-migrated.
+     */
+    public function get_oneloginuserinfo(array $tokenparams, string $username) {
+        global $DB;
+
+        $config = get_config('auth_oidc');
+
+        $oidcresource = $config->oidcresource;
+
+        $curl = curl_init($oidcresource);
+
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $config->oidcresource,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            CURLOPT_HTTPHEADER => [
+                "Authorization: Bearer " . $tokenparams['access_token']
+            ],
+        ]);
+
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+
+        curl_close($curl);
+
+        if ($err) {
+            echo "cURL Error #:" . $err;
+        } else {
+            $response = json_decode($response);
+        }
+
+        curl_close($curl);
+
+        $user = $DB->get_record('user', ['username' => $username], 'id');
+
+        if ($user) {
+            $user->email = $response->email;
+            $DB->update_record('user', $user);
+        }
+
+        return $response;
+    }
+
+    /**
+     * Calls the userinfo endpoint and gets all the info
+     *
+     * @param array $tokenparams Token params array.
+     * @param \auth_oidc\loginflow\Bit $migrated The flag for migrated user. 1 for migrated, 0 for non-migrated.
+     */
+    public function get_oidcresource(array $tokenparams) {
+
+        $config = get_config('auth_oidc');
+
+        $oidcresource = $config->oidcresource;
+
+        $curl = curl_init($oidcresource);
+
+        curl_setopt_array($curl, [
+            CURLOPT_URL => $config->oidcresource,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => "",
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => "GET",
+            CURLOPT_HTTPHEADER => [
+                "Authorization: Bearer " . $tokenparams['access_token']
+            ],
+        ]);
+
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+
+        curl_close($curl);
+
+        if ($err) {
+            echo "cURL Error #:" . $err;
+        } else {
+            $response = json_decode($response);
+        }
+
+        curl_close($curl);
+
+        return $response;
+    }
+
+    // END SKILLSET
+
+
 }
