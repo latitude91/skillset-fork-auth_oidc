@@ -42,9 +42,8 @@ use core\di;
 
 // SKILLSET START
 global $CFG;
-
 use local_bossuserflow\bossuserflow;
-
+use moodle_url;
 // SKILLSET END
 
 defined('MOODLE_INTERNAL') || die();
@@ -262,6 +261,7 @@ class authcode extends base {
 
         // Check token exists.
         $tokenrec = $DB->get_record('auth_oidc_token', ['username' => $username]);
+
         $code = optional_param('code', null, PARAM_RAW);
         $tokenvalid = (!empty($tokenrec) && !empty($code) && $tokenrec->authcode === $code) ? true : false;
         return ($userexists === true && $tokenvalid === true) ? true : false;

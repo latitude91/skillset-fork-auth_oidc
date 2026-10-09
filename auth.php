@@ -333,7 +333,11 @@ class auth_plugin_oidc extends \auth_plugin_base {
         global $CFG, $DB;
 
         $params = [
-            'post_logout_redirect_uri' => $CFG->wwwroot,
+            // SKILLSET
+            // We need to set the redirect in Moodle config as this has to match the one logged with onelogin.
+            //'post_logout_redirect_uri' => $CFG->wwwroot,
+            'post_logout_redirect_uri' => $CFG->one_login_post_login_redirect_uri,
+            // END SKILLSET
         ];
 
         switch ($idptype) {
