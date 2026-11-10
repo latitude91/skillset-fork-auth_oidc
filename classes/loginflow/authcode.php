@@ -867,7 +867,7 @@ class authcode extends base {
         if ($existing == 'email' || $existing == 'guid') {
             // Auth the user.
             $matcheduserurl =
-                new moodle_url('/local/bossuserflow/matcheduser.php', ['email' => $userinfo->email, 'guid' => $oidcusername]);
+                new moodle_url('/local/bossuserflow/matchedusersuccess.php', []);
             redirect($matcheduserurl);
         } else if ($existing == 'newuser') {
             $selectlangurl = new moodle_url('/local/bossuserflow/selectlang.php', []);
