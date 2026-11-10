@@ -1,0 +1,15 @@
+.idea/deployment.xml
+.idea/modules.xml
+.idea/php.xml
+.idea/vcs.xml
+.idea/webServers.xml
+.idea/workspace.xml
+.idea/local_carboncalculator.iml
+.idea/.gitignore
+.idea/
+.node_modules/*
+/carboncalculator/maketable.php
+/package.json
+/package-lock.json
+*:Zone.Identifier
+*.zip
